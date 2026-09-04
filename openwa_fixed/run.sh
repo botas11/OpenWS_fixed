@@ -57,6 +57,23 @@ if [ -n "${OPENWA_API_KEY}" ] && [ -z "${API_MASTER_KEY}" ]; then
   API_MASTER_KEY="${OPENWA_API_KEY}"
 fi
 
+if [ -n "${OPENWA_API_KEY}" ] || [ -n "${API_MASTER_KEY}" ] || [ -n "${SESSION_ID}" ]; then
+  cat > "${OPENWA_DATA_DIR}/.env.generated" <<EOF
+API_KEY=${OPENWA_API_KEY:-${API_MASTER_KEY:-}}
+API_MASTER_KEY=${API_MASTER_KEY:-}
+SESSION_ID=${SESSION_ID:-}
+API_KEY_PEPPER=${API_KEY_PEPPER:-openwa-fixed-default-pepper}
+OPENWA_API_KEY=${OPENWA_API_KEY:-${API_MASTER_KEY:-}}
+EOF
+  chmod 600 "${OPENWA_DATA_DIR}/.env.generated"
+fi
+
+mkdir -p /app 2>/dev/null || true
+if [ -d "/app/data" ] && [ ! -L "/app/data" ]; then
+  rm -rf "/app/data"
+fi
+ln -sfn "${OPENWA_DATA_DIR}" "/app/data"
+
 export NODE_ENV=production
 export PORT=2785
 export LOG_LEVEL="${LOG_LEVEL}"
@@ -79,6 +96,9 @@ export PLUGINS_ENABLED=true
 export PLUGINS_DIR="${OPENWA_DATA_DIR}/plugins"
 export API_MASTER_KEY="${API_MASTER_KEY}"
 export API_KEY="${OPENWA_API_KEY:-${API_MASTER_KEY:-}}"
+export OPENWA_API_KEY="${OPENWA_API_KEY:-${API_MASTER_KEY:-}}"
+export SESSION_ID="${SESSION_ID}"
+export API_KEY_PEPPER="${API_KEY_PEPPER:-openwa-fixed-default-pepper}"
 
 if [ -n "$OPENWA_API_KEY" ]; then
   printf "%s" "$OPENWA_API_KEY" > "${OPENWA_DATA_DIR}/.api-key"
@@ -86,8 +106,6 @@ if [ -n "$OPENWA_API_KEY" ]; then
 fi
 
 echo "[OpenWA Add-on] Using data dir: ${OPENWA_DATA_DIR}"
-
-mkdir -p /app/data 2>/dev/null || true
 
 cleanup() {
   if [ -n "${HELPER_PID:-}" ]; then
